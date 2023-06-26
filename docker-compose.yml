@@ -71,3 +71,23 @@ services:
     image: redis:latest
     ports:
       - "127.0.0.1:${HOST_MACHINE_REDIS_PORT}:6379"
+
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: "${COMPOSE_PROJECT_NAME}-code-server"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ= ${CODE_SERVER_TIMEZONE}
+      - PASSWORD= ${CODE_SERVER_LOGIN_PASSWORD} #optional
+      - HASHED_PASSWORD= #optional
+      - SUDO_PASSWORD= ${CODE_SERVER_ROOT_PASSWORD} #optional
+      - SUDO_PASSWORD_HASH= #optional
+      - PROXY_DOMAIN=code-server.my.domain #optional
+      - DEFAULT_WORKSPACE=/var/www/html #optional
+    volumes:
+      - ./:/config
+      - ./www:/var/www/html
+    ports:
+      - 8443:${CODE_SERVER_PORT}
+    restart: unless-stopped
