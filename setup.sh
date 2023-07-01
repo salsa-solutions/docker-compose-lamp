@@ -7,45 +7,63 @@ if [[ $(id -u) -ne 0 ]]; then
 fi
 
 # Detect the package manager
-if command -v apt >/dev/null 2>&1; then
-    PACKAGE_MANAGER="apt"
-elif command -v yum >/dev/null 2>&1; then
-    PACKAGE_MANAGER="yum"
-elif command -v dnf >/dev/null 2>&1; then
-    PACKAGE_MANAGER="dnf"
-elif command -v pacman >/dev/null 2>&1; then
-    PACKAGE_MANAGER="pacman"
-elif command -v yay >/dev/null 2>&1; then
-    PACKAGE_MANAGER="yay"
-else
+package_managers=("apt" "yum" "dnf" "pacman" "yay")
+PACKAGE_MANAGER=""
+
+for manager in "${package_managers[@]}"; do
+    if command -v "$manager" >/dev/null 2>&1; then
+        PACKAGE_MANAGER="$manager install -y git docker docker-compose"
+        break
+    fi
+done
+
+if [[ -z "$PACKAGE_MANAGER" ]]; then
     echo "Unable to detect a supported package manager (apt, yum, dnf, pacman, or yay). Exiting."
     exit 1
 fi
 
 # Install packages
-
+echo "Usage: sudo bash script.sh [repository URL]"
+echo "Example: sudo bash script.sh https://github.com/sprintcube/docker-compose-lamp"
 
 # Prompt for repository URL or show help menu
 if [[ $# -eq 0 ]]; then
-    echo "Usage: sudo ./script.sh [repository URL]"
-    echo "Example: sudo ./script.sh http://pioxy.net:3000/Salsa/C.R.A.P"
-else
     echo "Installing necessary packages using $PACKAGE_MANAGER..."
-
-    if [[ $PACKAGE_MANAGER == "apt" ]]; then
-        apt install -y git docker docker-compose
-    elif [[ $PACKAGE_MANAGER == "yum" || $PACKAGE_MANAGER == "dnf" ]]; then
-        $PACKAGE_MANAGER install -y git docker docker-compose
-    elif [[ $PACKAGE_MANAGER == "pacman" ]]; then
-        pacman -Sy --noconfirm git docker docker-compose
-    elif [[ $PACKAGE_MANAGER == "yay" ]]; then
-        yay -Sy --noconfirm git docker docker-compose
+    if ! command -v docker-compose >/dev/null 2>&1; then
+        echo "Docker Compose is already installed. Skipping."
+        if ! command -v docker-compose >/dev/null 2>&1; then
+            echo "Docker Compose is already installed. Skipping."
+            if ! command -v git >/dev/null 2>&1; then
+                echo "Git is already installed. Skipping."
+            else
+                if ! eval "$PACKAGE_MANAGER"; then
+                    echo "Package installation failed. Exiting."
+                    exit 1
+                fi
+            fi 
+        else
+        if ! eval "$PACKAGE_MANAGER"; then
+            echo "Package installation failed. Exiting."
+            exit 1
+        fi
     fi
+fi
+
+    echo "Enabling and starting Docker..."
+    systemctl enable --now docker.service docker.socket
+
+    sleep 1
+
     REPO_URL="$1"
 
     # Clone the repository
     echo "Cloning repository..."
-    # git clone "$REPO_URL" ./www
+    if [[ -z "$REPO_URL" ]]; then
+        echo "No repository URL provided. Exiting."
+        exit 1
+    fi
+
+    git clone "$REPO_URL" ./www
 
     # Start Docker container using docker-compose
     echo "Starting Docker container..."
